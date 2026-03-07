@@ -1,0 +1,46 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: microdom-task
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: microdom-task
+  template:
+    metadata:
+      labels:
+        app: microdom-task
+    spec:
+      containers:
+        - name: microdom-task
+          image: wpirri/microdom_task:latest
+          ports:
+            - containerPort: 8082
+          livenessProbe:
+            httpGet:
+              path: /health
+              port: 8082
+            initialDelaySeconds: 5
+            periodSeconds: 10
+          readinessProbe:
+            httpGet:
+              path: /health
+              port: 8082
+            initialDelaySeconds: 3
+            periodSeconds: 5
+          volumeMounts:
+            - name: logs
+              mountPath: /app/logs
+            - name: etc
+              mountPath: /app/etc
+      volumes:
+        - name: logs
+          hostPath:
+            path: /var/log/microdom
+            type: DirectoryOrCreate
+        - name: etc
+          hostPath:
+            path: /etc
+            type: Directory
+            

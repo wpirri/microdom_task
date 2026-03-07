@@ -1,0 +1,52 @@
+Solicitud inicial al Copilot:
+Tengo de hacer un microservicio en python que luego voy a ejecutar en docker y kubernetes.
+El microservicio debe hacer un POST HTTPS a un servidor determinado cada 3 segundos.
+
+¿Querés que lo adaptemos a FastAPI con un endpoint  y métricas Prometheus, o preferís mantenerlo como un worker puro sin servidor HTTP?
+
+Si, adaptalo a FastAPI y agregale el endpoint /health. Además el servicio se va a llamar microdom_task. Pasame todos los archivos que necesito de nuevo con estas apataciones.
+
+Crear entorno virtual:
+    python -m venv microdom
+
+Entrar a entorno virtual:
+    source microdom/bin/activate
+
+Salir de entorno virtual
+    deactivate
+
+
+microdom_task/
+│
+├── app/
+│   ├── main.py
+│   ├── worker.py
+│   ├── config.py
+│   └── __init__.py
+│
+├── requirements.txt
+├── Dockerfile
+└── k8s-deployment.yaml
+
+docker build -t microdom-task .
+
+docker run -p 8081:8081 -v /var/log/microdom:/app/logs -v /etc:/app/etc microdom-task
+docker run -p 8081:8081 -v /var/log/microdom:/app/logs -v /etc:/app/etc microdom-task -d --restart unless-stopped --name microdom-task
+
+docker ps
+docker ps -a
+docker container prune (Borra los exited)
+docker rm 424c42019953 (Borra el ID)
+
+docker stop boring_kapitsa
+docker update --restart unless-stopped boring_kapitsa
+docker start boring_kapitsa
+
+Para Subit al Git
+    git add .
+    git commit -m "Algun comentario"
+    git push
+
+Para subir a GHCR
+    docker build -t microdom-task:latest .
+    docker tag microdom-task:latest ghcr.io/wpirri/microdom-task:latest
