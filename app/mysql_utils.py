@@ -34,6 +34,7 @@ def mysql_query_simple(query, params=None):
         cursor.close()
         conn.close()  # vuelve al pool
 
+# Consultas que no devuelven datos (INSERT, UPDATE)
 def mysql_execute(query, params=None):
     try:
         return mysql_execute_simple(query, params)
@@ -41,6 +42,7 @@ def mysql_execute(query, params=None):
         # intento 2
         return mysql_execute_simple(query, params)
 
+# Consultas que devuelven datos (SELECT)
 def mysql_query(query, params=None):
     try:
         return mysql_query_simple(query, params)
