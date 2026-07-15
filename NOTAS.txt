@@ -1,10 +1,8 @@
-Solicitud inicial al Copilot:
-Tengo de hacer un microservicio en python que luego voy a ejecutar en docker y kubernetes.
-El microservicio debe hacer un POST HTTPS a un servidor determinado cada 3 segundos.
-
-¿Querés que lo adaptemos a FastAPI con un endpoint  y métricas Prometheus, o preferís mantenerlo como un worker puro sin servidor HTTP?
-
-Si, adaptalo a FastAPI y agregale el endpoint /health. Además el servicio se va a llamar microdom_task. Pasame todos los archivos que necesito de nuevo con estas apataciones.
+==========================================================================================
+Servicio de domotica domiciliario
+Se ejecuta en forma local en el hogar y gestiona las tareas en background y comunicacion
+con la nube.
+==========================================================================================
 
 Crear entorno virtual:
     python -m venv microdom
@@ -30,8 +28,28 @@ microdom_task/
 
 docker build -t microdom-task .
 
-docker run -p 8081:8081 -v /var/log/microdom:/app/logs -v /etc:/app/etc microdom-task
-docker run -p 8081:8081 -v /var/log/microdom:/app/logs -v /etc:/app/etc microdom-task -d --restart unless-stopped --name microdom-task
+docker run --rm -it \
+  -e DBUSER=dompi_web \
+  -e DBPASSWORD=dompi_web \
+  -e DBHOST=192.168.10.32 \
+  -e DBNAME=DB_DOMPIWEB \
+  --name microdom-task \
+  -v /etc/microdom.conf:/app/etc/microdom.conf \
+  -v /var/log/microdom:/app/logs \
+  -p 8081:8081 microdom-task
+
+Daemon:
+docker run --rm -it \
+  -d --restart unless-stopped \
+  -e DBUSER=dompi_web \
+  -e DBPASSWORD=dompi_web \
+  -e DBHOST=192.168.10.32 \
+  -e DBNAME=DB_DOMPIWEB \
+  --name microdom-task \
+  -v /etc/microdom.conf:/app/etc/microdom.conf \
+  -v /var/log/microdom:/app/logs \
+  -p 8081:8081 microdom-task
+
 
 docker ps
 docker ps -a

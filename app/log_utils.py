@@ -8,7 +8,7 @@ def get_daily_logger():
 
     if not logger.handlers:
         handler = TimedRotatingFileHandler(
-            "/app/logs/microdom.log",
+            "/app/logs/microdom-task.log",
             when="midnight",
             interval=1,
             backupCount=7,
