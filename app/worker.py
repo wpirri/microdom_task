@@ -1,4 +1,5 @@
 import asyncio
+import json
 import requests
 from app.log_utils import get_daily_logger
 from app.config_utils import get_config_value
@@ -31,7 +32,7 @@ logger = get_daily_logger()
 # Respuesta con acciones
 #   {"System_Key":"PUEYRREDON2679-B1686NTU","Time_Stamp":"1784164060","Objeto":"Extractor Cocina","Accion":"on"}
 #
-def query_cloud(json_msg):
+def query_cloud(msg):
     if len(config.Cloud_Host_1_Address) == 0 and len(config.Cloud_Host_2_Address) == 0:
         logger.warning("[query_cloud] No hay hosts configurados para enviar la notificación.")
         return None
@@ -57,7 +58,7 @@ def query_cloud(json_msg):
 
     try:
         #logger.info(f"[query_cloud] POST: {url}")
-        response = requests.post(url, json=json_msg)
+        response = requests.post(url, data=msg)
         if response.status_code == 200:
             resp_message = response.json()
             #logger.info(f"[query_cloud] Resp: OK [{resp_message}]")
