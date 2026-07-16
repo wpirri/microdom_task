@@ -119,9 +119,9 @@ async def tareas_de_grupos():
                     elif estado == 1:
                         todos_apagados = False
             if todos_encendidos and query_result[i]['Estado'] != 1:
-                mysql_execute(f"UPDATE TB_DOM_GROUP SET Estado = 1 WHERE Id = {query_result[i]['Id']};")
+                mysql_execute(f"UPDATE TB_DOM_GROUP SET Estado = 1, Actualizar = 1 WHERE Id = {query_result[i]['Id']};")
             elif todos_apagados and query_result[i]['Estado'] != 0:
-                mysql_execute(f"UPDATE TB_DOM_GROUP SET Estado = 0 WHERE Id = {query_result[i]['Id']};")
+                mysql_execute(f"UPDATE TB_DOM_GROUP SET Estado = 0, Actualizar = 1 WHERE Id = {query_result[i]['Id']};")
 
 async def tareas_de_nube():
     query_result = mysql_query("SELECT Id AS ASS_Id,Objeto,Tipo,Estado,Icono_Apagado,"
@@ -142,6 +142,7 @@ async def tareas_de_nube():
         logger.info(f"[tareas_de_nube] Resp: {cloud_response}")
 
 async def worker_loop():
+    div = 0
     get_system_config()
     logger.info(f"System_Key: {config.System_Key}")
     logger.info(f"Cloud_Host_1_Address: {config.Cloud_Host_1_Address}")
@@ -152,10 +153,13 @@ async def worker_loop():
     logger.info(f"Cloud_Host_2_Proto: {config.Cloud_Host_2_Proto}")
 
     while True:
-        # Cada 5 Segundos
-        await tareas_de_dispositivos()
-        await tareas_de_grupos()
+        div += 1
+        if div >= 5:
+            div = 0
+            await tareas_de_dispositivos()
+            await tareas_de_grupos()
+            
         await tareas_de_nube()
 
-        await asyncio.sleep(get_config_value("TASK_INTERVAL", 5))
+        await asyncio.sleep(get_config_value("TASK_INTERVAL", 1))
         
