@@ -28,7 +28,7 @@ data:
 
 ---
 # ============================================
-# 3. Service (ClusterIP en puerto 8080)
+# 3. Service (ClusterIP en puerto 8081)
 # ============================================
 apiVersion: v1
 kind: Service
@@ -43,11 +43,11 @@ spec:
   ports:
     - name: http
       nodePort: 30143
-      port: 8082
-      targetPort: 8082
+      port: 8081
+      targetPort: 8081
 ---
 # ============================================
-# 4. Ingress (host → puerto 8080)
+# 4. Ingress (host → puerto 8081)
 # ============================================
 apiVersion: networking.k8s.io/v1
 kind: Ingress
@@ -67,7 +67,7 @@ spec:
               service:
                 name: microdom-service-task
                 port:
-                  number: 8082
+                  number: 8081
 ---
 # ============================================
 # 5. Deployment (limpio, optimizado, sin subPaths)
@@ -130,7 +130,7 @@ spec:
                   name: microdom
                   key: DBPASSWORD
           ports:
-            - containerPort: 8082
+            - containerPort: 8081
 
           resources:
             requests:
@@ -153,14 +153,14 @@ spec:
           livenessProbe:
             httpGet:
               path: /health
-              port: 8082
+              port: 8081
             initialDelaySeconds: 5
             periodSeconds: 10
 
           readinessProbe:
             httpGet:
               path: /health
-              port: 8082
+              port: 8081
             initialDelaySeconds: 3
             periodSeconds: 5
 

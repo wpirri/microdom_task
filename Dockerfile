@@ -26,8 +26,8 @@ RUN chown -R appuser:appuser /app
 USER appuser
 
 # Exponer puerto
-EXPOSE 8082
+EXPOSE 8081
 
 # Ejecutar la app
 #CMD ["python", "run.py"]
-CMD ["uvicorn", "app.main:app", "--host", "0.0.0.0", "--port", "8082"]
+CMD ["uvicorn", "app.main:app", "--host", "0.0.0.0", "--port", "8081"]

@@ -20,10 +20,23 @@ config = WorkerConfig()
 
 logger = get_daily_logger()
 
+# ##############################################################################################
+# Query minimo
+#   {"System_Key":"PUEYRREDON2679-B1686NTU"}
+# Query con datos de assign
+#   {"MAC":"ECFABC3B667B","Tipo_HW":"1","Direccion_IP":"192.168.10.176","Objeto":"Extractor Cocina","ASS_Id":"51","Tipo_ASS":"0","Port":"OUT3","Estado":"1","Analog_Mult_Div_Valor":"1"}
+#
+# Respuesta minima
+#   {"response":{"resp_code":"0", "resp_msg":"Ok"}}
+# Respuesta con acciones
+#   {"System_Key":"PUEYRREDON2679-B1686NTU","Time_Stamp":"1784164060","Objeto":"Extractor Cocina","Accion":"on"}
+#
 def query_cloud(json_msg):
     if len(config.Cloud_Host_1_Address) == 0 and len(config.Cloud_Host_2_Address) == 0:
         logger.warning("[query_cloud] No hay hosts configurados para enviar la notificación.")
-        return
+        return None
+
+    resp_message = None
 
     # Si el que está apuntado no está configurado e voy por el otro
     if config.Use_host == 1 and len(config.Cloud_Host_1_Address) == 0:
@@ -43,11 +56,11 @@ def query_cloud(json_msg):
             url = f"{config.Cloud_Host_2_Proto}://{config.Cloud_Host_2_Address}:{config.Cloud_Host_2_Port}{config.Host_Api_Endpoint}"
 
     try:
-        logger.info(f"[query_cloud] POST: {url}")
+        #logger.info(f"[query_cloud] POST: {url}")
         response = requests.post(url, json=json_msg)
         if response.status_code == 200:
             resp_message = response.json()
-            logger.info(f"[query_cloud] Resp: OK [{resp_message}]")
+            #logger.info(f"[query_cloud] Resp: OK [{resp_message}]")
         else:
             logger.error(f"[query_cloud] [{response.status_code}] en POST a {url}")
             # Cambio de host para el próximo intento
@@ -57,6 +70,7 @@ def query_cloud(json_msg):
         # Cambio de host para el próximo intento
         config.Use_host = (3 - config.Use_host)
     
+    return resp_message
 
 def get_estado_de_assign(id_assign):
     """
@@ -87,46 +101,10 @@ def get_system_config():
 
 async def tareas_de_dispositivos():
     logger.debug("[tareas_de_dispositivos]")
-    """
-        CREATE TABLE IF NOT EXISTS TB_DOM_PERIF (
-            Id integer primary key,
-            MAC varchar(16) NOT NULL,                       -- MAC Address
-            Dispositivo varchar(128) NOT NULL,
-            Tipo integer DEFAULT 0,                         -- 0=Ninguno, 1=Wifi 2=RBPi 3=DSC 4=Garnet
-    >       Estado integer DEFAULT 0,                       -- 0=Offline
-            Direccion_IP varchar(16) DEFAULT "0.0.0.0",
-    >       Ultimo_Ok integer DEFAULT 0,
-            Usar_Https integer DEFAULT 0,
-            Habilitar_Wiegand integer DEFAULT 0,
-            Update_Firmware integer DEFAULT 0,
-            Update_WiFi integer DEFAULT 0,
-            Update_Config integer DEFAULT 0,
-            Informacion varchar(1024),
-            UNIQUE INDEX idx_perif_id (Id),
-            UNIQUE INDEX idx_perif_mac (MAC)
-        );
-    """
     mysql_execute("UPDATE TB_DOM_PERIF SET Estado = 0 WHERE Ultimo_Ok < (UNIX_TIMESTAMP()-30) AND Estado != 0;")
 
 async def tareas_de_grupos():
     logger.debug("[tareas_de_grupos]")
-    """
-    CREATE TABLE IF NOT EXISTS TB_DOM_GROUP (
-    Id integer primary key,
-    Grupo varchar(128) NOT NULL,
-    Listado_Objetos varchar(256),       -- Id de assign separados por , (comas)
-    Estado integer DEFAULT 0,            -- Define el estado que deben tener los objetos del grupo
-    Icono_Apagado varchar(32),
-    Icono_Encendido varchar(32),
-    Grupo_Visual integer DEFAULT 0,             -- 0=Ninguno 1=Alarma 2=Iluminación 3=Puertas 4=Climatización 5=Cámaras 6=Riego
-    Planta integer DEFAULT 0,
-    Cord_x integer DEFAULT 0,
-    Cord_y integer DEFAULT 0,
-    Actualizar integer DEFAULT 0,
-    UNIQUE INDEX idx_group_id (Id)
-    );
-    """
-
     query_result = mysql_query("SELECT * FROM TB_DOM_GROUP WHERE Id > 0;")
     if query_result:
         for i in range(0, len(query_result)):
@@ -146,10 +124,22 @@ async def tareas_de_grupos():
                 mysql_execute(f"UPDATE TB_DOM_GROUP SET Estado = 0 WHERE Id = {query_result[i]['Id']};")
 
 async def tareas_de_nube():
-    json_msg = {
-        "System_Key": config.System_Key
-    }
-    query_cloud(json_msg)
+    query_result = mysql_query("SELECT Id AS ASS_Id,Objeto,Tipo,Estado,Icono_Apagado,"
+        "Icono_Encendido,Grupo_Visual,Planta,Cord_x,"
+        "Cord_y,Coeficiente,Analog_Mult_Div,Analog_Mult_Div_Valor,Flags "
+        "FROM TB_DOM_ASSIGN WHERE Id > 0 AND Grupo_Visual > 0 AND Actualizar = 1;")
+    if query_result:
+        for i in range(0, len(query_result)):
+            query_result[i]['System_Key'] = config.System_Key
+            logger.info(f"[tareas_de_nube] Req: {query_result[i]}")
+            cloud_response = query_cloud(query_result[i])
+            logger.info(f"[tareas_de_nube] Resp: {cloud_response}")
+            mysql_execute(f"UPDATE TB_DOM_ASSIGN SET Actualizar = 0 WHERE Id = {query_result[i]['ASS_Id']};")
+    else:
+        query_result = [{"System_Key": config.System_Key}]
+        logger.info(f"[tareas_de_nube] Req: {query_result[0]}")
+        cloud_response = query_cloud(query_result[0])
+        logger.info(f"[tareas_de_nube] Resp: {cloud_response}")
 
 async def worker_loop():
     get_system_config()
