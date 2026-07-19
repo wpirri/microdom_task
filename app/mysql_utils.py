@@ -7,16 +7,19 @@ logger = get_daily_logger()
 def mysql_execute_simple(query, params=None):
     conn = get_conn()
     if not conn:
-        return False
+        return -1
+
+    cursor = None
     try:
         cursor = conn.cursor()
         cursor.execute(query, params)
-        return True
+        return cursor.rowcount
     except Error as e:
         logger.error(f"Error ejecutando query: {e}")
-        return False
+        return -1
     finally:
-        cursor.close()
+        if cursor is not None:
+            cursor.close()
         conn.close()  # vuelve al pool
 
 def mysql_query_simple(query, params=None):
