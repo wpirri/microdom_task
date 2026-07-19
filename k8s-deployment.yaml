@@ -21,7 +21,7 @@ kind: ConfigMap
 metadata:
   name: microdom-config
 data:
-  microdom.conf: |
+  microdom.conf:
     REMOTE_HOST=witchblade.com.ar
     REMOTE_PORT=443
     REMOTE_PROTO=https
