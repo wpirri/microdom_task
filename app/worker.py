@@ -142,9 +142,33 @@ async def tareas_de_nube():
         cloud_response = query_cloud(query_result[0])
         logger.info(f"[tareas_de_nube] Resp: {cloud_response}")
 
+async def actualizacion_de_usuarios_de_nube():
+    query_result = mysql_query("SELECT * from TB_DOM_USER WHERE Actualizar = 1 AND Id > 0;")
+    if query_result:
+        for i in range(0, len(query_result)):
+            if query_result[i]['Ususario_Cloud'] and query_result[i]['Clave_Cloud']:
+                query_result[i]['System_Key'] = config.System_Key
+                logger.info(f"[tareas_de_usuarios_de_nube] Req: {query_result[i]}")
+                cloud_response = query_cloud(query_result[i])
+                logger.info(f"[tareas_de_usuarios_de_nube] Resp: {cloud_response}")
+                mysql_execute(f"UPDATE TB_DOM_USER SET Actualizar = 0 WHERE Id = {query_result[i]['Id']};")
+
+async def tareas_de_usuarios_de_nube():
+    query_result = mysql_query("SELECT * from TB_DOM_USER WHERE Id > 0;")
+    if query_result:
+        for i in range(0, len(query_result)):
+            if query_result[i]['Ususario_Cloud'] and query_result[i]['Clave_Cloud']:
+                query_result[i]['System_Key'] = config.System_Key
+                logger.info(f"[tareas_de_usuarios_de_nube] Req: {query_result[i]}")
+                cloud_response = query_cloud(query_result[i])
+                logger.info(f"[tareas_de_usuarios_de_nube] Resp: {cloud_response}")
+
 async def worker_loop():
-    div = 0
+    div_5seg = 0
+    div_3600seg = 3595
+
     get_system_config()
+    
     logger.info(f"System_Key: {config.System_Key}")
     logger.info(f"Cloud_Host_1_Address: {config.Cloud_Host_1_Address}")
     logger.info(f"Cloud_Host_1_Port: {config.Cloud_Host_1_Port}")
@@ -154,12 +178,18 @@ async def worker_loop():
     logger.info(f"Cloud_Host_2_Proto: {config.Cloud_Host_2_Proto}")
 
     while True:
-        div += 1
-        if div >= 5:
-            div = 0
+        div_5seg += 1
+        if div_5seg >= 5:
+            div_5seg = 0
             await tareas_de_dispositivos()
             await tareas_de_grupos()
-            
+            await actualizacion_de_usuarios_de_nube()
+        div_3600seg += 1
+        if div_3600seg >= 3600:
+            div_3600seg = 0
+            tareas_de_usuarios_de_nube()
+
+
         await tareas_de_nube()
 
         await asyncio.sleep(get_config_value("TASK_INTERVAL", 1))
