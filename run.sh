@@ -1,8 +1,13 @@
 #!/bin/sh
 
+echo "Stop microdom-task..."
 docker stop microdom-task
 sleep 3
-docker run --rm -it \
+echo "Remove microdom-task..."
+docker rm microdom-task
+sleep 3
+docker run -it \
+  -d --restart unless-stopped \
   -e DBUSER=dompi_web \
   -e DBPASSWORD=dompi_web \
   -e DBHOST=192.168.10.32 \
