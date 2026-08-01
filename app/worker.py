@@ -139,7 +139,7 @@ async def tareas_de_grupos():
             elif todos_apagados and query_result[i]['Estado'] != 0:
                 mysql_execute(f"UPDATE TB_DOM_GROUP SET Estado = 0, Actualizar = 1 WHERE Id = {query_result[i]['Id']};")
 
-async def tareas_de_nube():
+async def check_notificar_abm_objetos():
     query_result = mysql_query("SELECT Id AS ASS_Id,Objeto,Tipo,Estado,Icono_Apagado,"
         "Icono_Encendido,Grupo_Visual,Planta,Cord_x,"
         "Cord_y,Coeficiente,Analog_Mult_Div,Analog_Mult_Div_Valor,Flags "
@@ -147,32 +147,45 @@ async def tareas_de_nube():
     if query_result:
         for i in range(0, len(query_result)):
             query_result[i]['System_Key'] = config.System_Key
-            logger.info(f"[tareas_de_nube] Actualizando estado de objeto: {query_result[i]}")
+            logger.info(f"[check_notificar_abm_objetos] Actualizando estado de objeto: {query_result[i]}")
             query_cloud(query_result[i])
             mysql_execute(f"UPDATE TB_DOM_ASSIGN SET Actualizar = 0 WHERE Id = {query_result[i]['ASS_Id']};")
     else:
         query_result = [{"System_Key": config.System_Key}]
         query_cloud(query_result[0])
 
-async def actualizacion_de_usuarios_de_nube():
+async def check_notificar_abm_usuario():
     query_result = mysql_query("SELECT Usuario_Cloud AS User_Id, Clave_Cloud AS Clave, Amazon_Key, Google_Key, Apple_Key, Other_Key, Estado from TB_DOM_USER WHERE Actualizar = 1 AND Id > 0;")
     if query_result:
         for i in range(0, len(query_result)):
             if query_result[i]['User_Id'] and query_result[i]['Clave']:
                 query_result[i]['System_Key'] = config.System_Key
-                logger.info(f"[actualizacion_de_usuarios_de_nube] Req: {query_result[i]}")
+                logger.info(f"[check_notificar_abm_usuario] Req: {query_result[i]}")
                 query_cloud(query_result[i])
                 mysql_execute(f"UPDATE TB_DOM_USER SET Actualizar = 0 WHERE Id = {query_result[i]['Id']};")
 
-async def tareas_de_usuarios_de_nube():
-    logger.info(f"[tareas_de_usuarios_de_nube] Actualizando usuarios en la nube")
+async def actualizar_usuarios_a_nube():
+    logger.info(f"[actualizar_usuarios_a_nube] Actualizando usuarios en la nube")
     query_result = mysql_query("SELECT Usuario_Cloud AS User_Id, Clave_Cloud AS Clave, Amazon_Key, Google_Key, Apple_Key, Other_Key, Estado FROM TB_DOM_USER WHERE Id > 0;")
     if query_result:
         for i in range(0, len(query_result)):
             if query_result[i]['User_Id'] and query_result[i]['Clave']:
                 query_result[i]['System_Key'] = config.System_Key
-                logger.info(f"[tareas_de_usuarios_de_nube] Req: {query_result[i]}")
+                logger.info(f"[actualizar_usuarios_a_nube] Req: {query_result[i]}")
                 query_cloud(query_result[i])
+
+async def actualizar_objetos_a_nube():
+    logger.info(f"[actualizar_objetos_a_nube] Actualizando objetos en la nube")
+    query_result = mysql_query("SELECT Id AS ASS_Id,Objeto,Tipo,Estado,Icono_Apagado,"
+        "Icono_Encendido,Grupo_Visual,Planta,Cord_x,"
+        "Cord_y,Coeficiente,Analog_Mult_Div,Analog_Mult_Div_Valor,Flags "
+        "FROM TB_DOM_ASSIGN WHERE Id > 0 AND Grupo_Visual > 0;")
+    if query_result:
+        for i in range(0, len(query_result)):
+            query_result[i]['System_Key'] = config.System_Key
+            logger.info(f"[actualizar_objetos_a_nube] Actualizando estado de objeto: {query_result[i]}")
+            query_cloud(query_result[i])
+            mysql_execute(f"UPDATE TB_DOM_ASSIGN SET Actualizar = 0 WHERE Id = {query_result[i]['ASS_Id']};")
 
 async def worker_loop():
     div_5seg = 0
@@ -194,14 +207,14 @@ async def worker_loop():
             div_5seg = 0
             await tareas_de_dispositivos()
             await tareas_de_grupos()
-            await actualizacion_de_usuarios_de_nube()
+            await check_notificar_abm_usuario()
         div_3600seg += 1
         if div_3600seg >= 3600:
             div_3600seg = 0
-            await tareas_de_usuarios_de_nube()
+            await actualizar_usuarios_a_nube()
+            await actualizar_objetos_a_nube()
 
-
-        await tareas_de_nube()
+        await check_notificar_abm_objetos()
 
         await asyncio.sleep(get_config_value("TASK_INTERVAL", 1))
         
