@@ -16,10 +16,17 @@ class WorkerConfig:
         self.Cloud_Host_2_Proto = ""
         self.Use_host = 1  # 1=Cloud_Host_1, 2=Cloud_Host_2
         self.Host_Api_Endpoint = "/cgi-bin/dompi_cloud_notif.cgi"  # Endpoint de la API en el host remoto
+        self.Cloud_Status = 0  # 1=on-line, 0=off-line
 
 config = WorkerConfig()
 
 logger = get_daily_logger()
+
+# ##############################################################################################
+# Verifica si hay comandos a ejecutar en la respuesta de la nube y los ejecuta.
+# Por ahora no hace nada.
+def Check_Cloud_Response(resp):
+    return None
 
 # ##############################################################################################
 # Query minimo
@@ -61,17 +68,25 @@ def query_cloud(msg):
         response = requests.post(url, data=msg)
         if response.status_code == 200:
             resp_message = response.json()
-            #logger.info(f"[query_cloud] Resp: OK [{resp_message}]")
+            if config.Cloud_Status == 0:
+                logger.info(f"[query_cloud] Host {config.Use_host} en línea.")
+                config.Cloud_Status = 1  # Marcar como on-line
         else:
             logger.error(f"[query_cloud] [{response.status_code}] en POST a {url}")
             # Cambio de host para el próximo intento
             config.Use_host = (3 - config.Use_host)
+            if config.Cloud_Status == 0:
+                logger.info(f"[query_cloud] Host Cloud fuera de línea.")
+                config.Cloud_Status = 0  # Marcar como off-line
     except Exception as e:
         logger.error(f"[query_cloud] Excepción en POST a {url} [{e}]")
         # Cambio de host para el próximo intento
         config.Use_host = (3 - config.Use_host)
+        if config.Cloud_Status == 0:
+            logger.info(f"[query_cloud] Host Cloud fuera de línea.")
+            config.Cloud_Status = 0  # Marcar como off-line
     
-    return resp_message
+    return Check_Cloud_Response(resp_message)
 
 def get_estado_de_assign(id_assign):
     """
@@ -132,36 +147,32 @@ async def tareas_de_nube():
     if query_result:
         for i in range(0, len(query_result)):
             query_result[i]['System_Key'] = config.System_Key
-            logger.info(f"[tareas_de_nube] Req: {query_result[i]}")
-            cloud_response = query_cloud(query_result[i])
-            logger.info(f"[tareas_de_nube] Resp: {cloud_response}")
+            logger.info(f"[tareas_de_nube] Actualizando estado de objeto: {query_result[i]}")
+            query_cloud(query_result[i])
             mysql_execute(f"UPDATE TB_DOM_ASSIGN SET Actualizar = 0 WHERE Id = {query_result[i]['ASS_Id']};")
     else:
         query_result = [{"System_Key": config.System_Key}]
-        logger.info(f"[tareas_de_nube] Req: {query_result[0]}")
-        cloud_response = query_cloud(query_result[0])
-        logger.info(f"[tareas_de_nube] Resp: {cloud_response}")
+        query_cloud(query_result[0])
 
 async def actualizacion_de_usuarios_de_nube():
-    query_result = mysql_query("SELECT * from TB_DOM_USER WHERE Actualizar = 1 AND Id > 0;")
+    query_result = mysql_query("SELECT Usuario_Cloud AS User_Id, Clave_Cloud AS Clave, Amazon_Key, Google_Key, Apple_Key, Other_Key, Estado from TB_DOM_USER WHERE Actualizar = 1 AND Id > 0;")
     if query_result:
         for i in range(0, len(query_result)):
-            if query_result[i]['Ususario_Cloud'] and query_result[i]['Clave_Cloud']:
+            if query_result[i]['User_Id'] and query_result[i]['Clave']:
                 query_result[i]['System_Key'] = config.System_Key
-                logger.info(f"[tareas_de_usuarios_de_nube] Req: {query_result[i]}")
-                cloud_response = query_cloud(query_result[i])
-                logger.info(f"[tareas_de_usuarios_de_nube] Resp: {cloud_response}")
+                logger.info(f"[actualizacion_de_usuarios_de_nube] Req: {query_result[i]}")
+                query_cloud(query_result[i])
                 mysql_execute(f"UPDATE TB_DOM_USER SET Actualizar = 0 WHERE Id = {query_result[i]['Id']};")
 
 async def tareas_de_usuarios_de_nube():
-    query_result = mysql_query("SELECT * from TB_DOM_USER WHERE Id > 0;")
+    logger.info(f"[tareas_de_usuarios_de_nube] Actualizando usuarios en la nube")
+    query_result = mysql_query("SELECT Usuario_Cloud AS User_Id, Clave_Cloud AS Clave, Amazon_Key, Google_Key, Apple_Key, Other_Key, Estado FROM TB_DOM_USER WHERE Id > 0;")
     if query_result:
         for i in range(0, len(query_result)):
-            if query_result[i]['Ususario_Cloud'] and query_result[i]['Clave_Cloud']:
+            if query_result[i]['User_Id'] and query_result[i]['Clave']:
                 query_result[i]['System_Key'] = config.System_Key
                 logger.info(f"[tareas_de_usuarios_de_nube] Req: {query_result[i]}")
-                cloud_response = query_cloud(query_result[i])
-                logger.info(f"[tareas_de_usuarios_de_nube] Resp: {cloud_response}")
+                query_cloud(query_result[i])
 
 async def worker_loop():
     div_5seg = 0
@@ -187,7 +198,7 @@ async def worker_loop():
         div_3600seg += 1
         if div_3600seg >= 3600:
             div_3600seg = 0
-            tareas_de_usuarios_de_nube()
+            await tareas_de_usuarios_de_nube()
 
 
         await tareas_de_nube()

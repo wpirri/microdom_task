@@ -15,7 +15,8 @@ def mysql_execute_simple(query, params=None):
         cursor.execute(query, params)
         return cursor.rowcount
     except Error as e:
-        logger.error(f"Error ejecutando query: {e}")
+        logger.error(f"[mysql] {e}")
+        logger.error(f"[mysql] En Query: {query}")
         return -1
     finally:
         if cursor is not None:
@@ -31,7 +32,8 @@ def mysql_query_simple(query, params=None):
         cursor.execute(query, params)
         return cursor.fetchall()
     except Error as e:
-        logger.error(f"Error ejecutando query: {e}")
+        logger.error(f"[mysql] {e}")
+        logger.error(f"[mysql] En Query: {query}")
         return None
     finally:
         cursor.close()
