@@ -1,5 +1,7 @@
 #!/bin/sh
 
+echo "Building microdom-task docker image..."
+docker build -t microdom-task .
 echo "Stop microdom-task..."
 docker stop microdom-task
 sleep 3
