@@ -23,9 +23,34 @@ config = WorkerConfig()
 logger = get_daily_logger()
 
 # ##############################################################################################
+# Funciones para manejar los objetos (assigns) en la base de datos
+def change_assign_by_name(name, accion, parametro=0):
+    if accion == "ON":
+        logger.info(f"[change_assign_by_name] Encender: {name}")
+        mysql_execute(f"UPDATE TB_DOM_ASSIGN SET Estado = 1, Actualizar = 1 WHERE Objeto = '{name}'")
+    elif accion == "OFF":
+        logger.info(f"[change_assign_by_name] Apagar: {name}")
+        mysql_execute(f"UPDATE TB_DOM_ASSIGN SET Estado = 0, Actualizar = 1 WHERE Objeto = '{name}'")
+    elif accion == "SWITCH":
+        logger.info(f"[change_assign_by_name] Alternar: {name}")
+        mysql_execute(f"UPDATE TB_DOM_ASSIGN SET Estado = (1 - Estado), Actualizar = 1 WHERE Objeto = '{name}'")
+    elif accion == "PULSE":
+        logger.info(f"[change_assign_by_name] Pulso de: {parametro}s a: {name}")
+        mysql_execute(f"UPDATE TB_DOM_ASSIGN SET Estado = (1 + {parametro}), Actualizar = 1 WHERE Objeto = '{name}'")
+    else:
+        logger.warning(f"change_assign_by_name: acción desconocida {accion} para Objeto={name}")
+
+# ##############################################################################################
 # Verifica si hay comandos a ejecutar en la respuesta de la nube y los ejecuta.
 # Por ahora no hace nada.
 def Check_Cloud_Response(resp):
+    if resp != None:
+        # {'objeto': 'Luz Dormitorio Fondo', 'accion': 'OFF', 'error': 0, 'message': 'Ok'}
+        #logger.info(f"[Check_Cloud_Response] Respuesta de la nube: {resp}")
+        if 'error' in resp and resp['error'] == 0:
+            if 'accion' in resp and 'objeto' in resp:
+                logger.info(f"[Check_Cloud_Response] Acción recibida: {resp['accion']} para el objeto: {resp['objeto']}")
+                change_assign_by_name(resp['objeto'], resp['accion'])
     return None
 
 # ##############################################################################################
