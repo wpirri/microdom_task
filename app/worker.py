@@ -164,6 +164,11 @@ async def tareas_de_grupos():
             elif todos_apagados and query_result[i]['Estado'] != 0:
                 mysql_execute(f"UPDATE TB_DOM_GROUP SET Estado = 0, Actualizar = 1 WHERE Id = {query_result[i]['Id']};")
 
+async def tareas_de_assigns():
+    logger.debug("[tareas_de_assign]")
+    # Mantengo el estado de las salidas de pulso
+    mysql_execute(f"UPDATE TB_DOM_ASSIGN SET Estado = (Estado-1) WHERE Estado > 0 AND Tipo = 5;")
+
 async def check_notificar_abm_objetos():
     query_result = mysql_query("SELECT Id AS ASS_Id,Objeto,Tipo,Estado,Icono_Apagado,"
         "Icono_Encendido,Grupo_Visual,Planta,Cord_x,"
@@ -228,18 +233,22 @@ async def worker_loop():
 
     while True:
         div_5seg += 1
-        if div_5seg >= 5:
+        if div_5seg >= 15:
             div_5seg = 0
+            # Cada 15 segundos
             await tareas_de_dispositivos()
             await tareas_de_grupos()
             await check_notificar_abm_usuario()
         div_3600seg += 1
         if div_3600seg >= 3600:
             div_3600seg = 0
+            # Cada hora
             await actualizar_usuarios_a_nube()
             await actualizar_objetos_a_nube()
 
+        # Cada segundo
         await check_notificar_abm_objetos()
+        await tareas_de_assigns()
 
         await asyncio.sleep(get_config_value("TASK_INTERVAL", 1))
         
