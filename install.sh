@@ -1,13 +1,18 @@
 #!/bin/sh
 
+sudo mkdir -p /var/log/microdom
+sudo chmod 0777 /var/log/microdom
+sudo cp -uva etc/microdom.conf /etc
+
 echo "Building microdom-task docker image..."
 docker build -t microdom-task .
 echo "Stop microdom-task..."
 docker stop microdom-task
-sleep 3
+sleep 1
 echo "Remove microdom-task..."
 docker rm microdom-task
-sleep 3
+sleep 1
+echo "Run microdom-task..."
 docker run -it \
   -d --restart unless-stopped \
   -e DBUSER=dompi_web \

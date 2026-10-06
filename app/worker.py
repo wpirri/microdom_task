@@ -271,11 +271,12 @@ def change_group_by_id(id, accion, parametro=0):
 
 async def check_task():
     dias = ["Do", "Lu", "Ma", "Mi", "Ju", "Vi", "Sa"]
-    dia_semana = dias[int(datetime.now().strftime("%w"))]
-    mes = datetime.now().strftime("%m")
-    dia = datetime.now().strftime("%d")
-    hora = datetime.now().strftime("%H")
-    minuto = datetime.now().strftime("%M")
+    ahora = datetime.now().astimezone()
+    dia_semana = dias[int(ahora.strftime("%w"))]
+    mes = int(ahora.strftime("%m"))
+    dia = int(ahora.strftime("%d"))
+    hora = int(ahora.strftime("%H"))
+    minuto = int(ahora.strftime("%M"))
 
     query = (
         "SELECT * FROM TB_DOM_AT WHERE "
@@ -317,12 +318,12 @@ async def check_task():
 async def check_auto():
     dias = ["Do", "Lu", "Ma", "Mi", "Ju", "Vi", "Sa"]
     tabla_enviar = ["Nada", "Encender", "Apagar", "Cambiar"]
-    dia_semana = dias[int(datetime.now().strftime("%w"))]
-    mes = datetime.now().strftime("%m")
-    dia = datetime.now().strftime("%d")
-    hora = datetime.now().strftime("%H")
-    minuto = datetime.now().strftime("%M")
-
+    ahora = datetime.now().astimezone()
+    dia_semana = dias[int(ahora.strftime("%w"))]
+    mes = int(ahora.strftime("%m"))
+    dia = int(ahora.strftime("%d"))
+    hora = int(ahora.strftime("%H"))
+    minuto = int(ahora.strftime("%M"))
     enviar = 0
 
     query = (
@@ -332,32 +333,29 @@ async def check_auto():
     )
 
     query_result = mysql_query(query)
-
     if query_result:
         for item in query_result:
-            id = item.get('Id')
-
-            Id = item.get('Id')
+            Id = int(item.get('Id'))
             Objeto = item.get('Objeto')
-            Objeto_Salida = item.get('Objeto_Salida')
-            Objeto_Sensor = item.get('Objeto_Sensor')
-            Grupo_Salida = item.get('Grupo_Salida')
-            Particion_Salida = item.get('Particion_Salida')
-            Funcion_Salida = item.get('Funcion_Salida')
-            Variable_Salida = item.get('Variable_Salida')
-            Parametro_Evento = item.get('Parametro_Evento')
-            Estado = item.get('Estado')
-            Estado_Sensor = item.get('Estado_Sensor')
-            Min_Sensor = item.get('Min_Sensor')
-            Max_Sensor = item.get('Max_Sensor')
-            Habilitado = item.get('Habilitado')
-            Hora_Inicio = item.get('Hora_Inicio')
-            Minuto_Inicio = item.get('Minuto_Inicio')
-            Hora_Fin = item.get('Hora_Fin')
-            Minuto_Fin = item.get('Minuto_Fin')
+            Objeto_Salida = int(item.get('Objeto_Salida', '0'))
+            Objeto_Sensor = int(item.get('Objeto_Sensor', '0'))
+            Grupo_Salida = int(item.get('Grupo_Salida', '0'))
+            Particion_Salida = int(item.get('Particion_Salida', '0'))
+            Funcion_Salida = int(item.get('Funcion_Salida', '0'))
+            Variable_Salida = int(item.get('Variable_Salida', '0'))
+            Parametro_Evento = int(item.get('Parametro_Evento', '0'))
+            Estado = int(item.get('Estado', '0'))
+            Estado_Sensor = int(item.get('Estado_Sensor', '0'))
+            Min_Sensor = int(item.get('Min_Sensor', '0'))
+            Max_Sensor = int(item.get('Max_Sensor', '0'))
+            Habilitado = int(item.get('Habilitado', '0'))
+            Hora_Inicio = int(item.get('Hora_Inicio', '0'))
+            Minuto_Inicio = int(item.get('Minuto_Inicio', '0'))
+            Hora_Fin = int(item.get('Hora_Fin', '0'))
+            Minuto_Fin = int(item.get('Minuto_Fin', '0'))
             Dias_Semana = item.get('Dias_Semana')
-            Enviar_Max = item.get('Enviar_Max')
-            Enviar_Min = item.get('Enviar_Min')
+            Enviar_Max = int(item.get('Enviar_Max', '0'))
+            Enviar_Min = int(item.get('Enviar_Min', '0'))
 
             set_estado = 0
             enviar = 0
@@ -369,18 +367,18 @@ async def check_auto():
                 #   2 - Automático
                 if Habilitado == 0:
                     if Estado == 1:
-                        logger.info(f"[check_auto] Apagar {Objeto} - Apagado forzado")
+                        Estado = 0
                         enviar = 2   # apagar
                 elif Habilitado == 1:
                     if Estado == 0:
-                        logger.info(f"[check_auto] Encender {Objeto} - Encendido forzado")
+                        Estado = 1
                         enviar = 1   # encender
                 elif Habilitado == 2: 
                     # Automatico
                     dias_configurados = [d.strip() for d in str(Dias_Semana or "").split(",") if d.strip()]
                     if dia_semana not in dias_configurados:
                         if Estado == 1:
-                            logger.info(f"[check_auto] Apagar {Objeto} - Fuera de dia de la semana")
+                            Estado = 0
                             enviar = 2 # Apagar
                         break
                     # Si hay valores validos en el horario
@@ -393,7 +391,7 @@ async def check_auto():
                                 (hora > Hora_Fin  or  (hora == Hora_Fin and minuto > Minuto_Fin) ) ):
                                 # Fuera de horario
                                 if Estado == 1:
-                                    logger.info(f"[check_auto] Apagar {Objeto} - Fuera de Horario")
+                                    Estado = 0
                                     enviar = 2 # Apagar
                                 break
                         else:
@@ -403,38 +401,37 @@ async def check_auto():
                                 (hora > Hora_Fin  or  (hora == Hora_Fin and minuto > Minuto_Fin) ) ):
                                 # Fuera de horario
                                 if Estado == 1:
-                                    logger.info(f"[check_auto] Apagar {Objeto} - Fuera de Horario")
+                                    Estado = 0
                                     enviar = 2 # Apagar
                                 break
+
                     # Si hay sensor definido evalúo el estado del sensor
                     if Objeto_Sensor > 0:
                         if Estado == 0 and Estado_Sensor >= Max_Sensor:
+                            Estado = 1
                             enviar = Enviar_Max     # Encender o Apagar
-                            logger.info(f"[check_auto] {Objeto} -> {tabla_enviar[enviar]}")
                             break;
                         if Estado == 1 and Estado_Sensor <= Min_Sensor:
+                            Estado = 0
                             enviar = Enviar_Min     # Encender o Apagar
-                            logger.info(f"[check_auto] {Objeto} -> {tabla_enviar[enviar]}")
                             break;
                     else:
                         # No hay sensor definido
                         if Estado == 0:
+                            Estado = 1
                             enviar = 1      # Encender
-                            logger.info(f"[check_auto] {Objeto} -> {enviar} - Sin sensor")
                             break
                 break
+
             # Si la condicion lo permite ejecuto según corresponda
             if enviar > 0:
+                mysql_execute(f"UPDATE TB_DOM_AUTO SET Estado = {Estado} WHERE Id = {Id};")
                 if Objeto_Salida > 0:
+                    logger.info(f"[check_auto] {tabla_enviar[enviar]} Objeto {Objeto_Salida}")
                     change_assign_by_id(Objeto_Salida, enviar, Parametro_Evento)
                 elif Grupo_Salida > 0:
-                    change_group_by_id(Objeto_Salida, enviar, Parametro_Evento)
-            #
-            if enviar == 1:
-                set_estado = 1
-            else:
-                set_estado = 0
-            mysql_execute(f"UPDATE TB_DOM_AUTO SET Estado = {set_estado} WHERE Id = {Id};")
+                    logger.info(f"[check_auto] {tabla_enviar[enviar]} Grupo {Grupo_Salida}")
+                    change_group_by_id(Grupo_Salida, enviar, Parametro_Evento)
 
 async def worker_loop():
     div_5seg = 0
@@ -459,13 +456,13 @@ async def worker_loop():
             await tareas_de_dispositivos()
             await tareas_de_grupos()
             await check_notificar_abm_usuario()
+            await check_auto()
 
         div_60seg += 1
         if div_60seg >= 60:
             div_60seg = 0
             # Cada minuto
             await check_task()
-            await check_auto()
 
         div_3600seg += 1
         if div_3600seg >= 3600:
