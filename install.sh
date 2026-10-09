@@ -1,8 +1,8 @@
 #!/bin/sh
 
-sudo mkdir -p /var/log/microdom
-sudo chmod 0777 /var/log/microdom
-sudo cp -uva etc/microdom.conf /etc
+#sudo mkdir -p /var/log/microdom
+#sudo chmod 0777 /var/log/microdom
+#sudo cp -uva etc/microdom.conf /etc
 
 echo "Building microdom-task docker image..."
 docker build -t microdom-task .

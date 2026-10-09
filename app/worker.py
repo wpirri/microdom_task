@@ -292,22 +292,23 @@ async def check_task():
 
     if query_result:
         for item in query_result:
-            id = item.get('Id')
+            id = int(item.get('Id', '0'))
             agenda = item.get('Agenda')
-            objeto_destino = item.get('Objeto_Destino')
-            grupo_destino = item.get('Grupo_Destino')
-            variable_destino = item.get('Variable_Destino')
-            evento = item.get('Evento')
+            objeto_destino = int(item.get('Objeto_Destino', '0'))
+            grupo_destino = int(item.get('Grupo_Destino', '0'))
+            variable_destino = int(item.get('Variable_Destino', '0'))
+            evento = int(item.get('Evento', '0'))
             parametro_evento = item.get('Parametro_Evento')
             condicion_variable = item.get('Condicion_Variable')
             condicion_igualdad = item.get('Condicion_Igualdad')
             condicion_valor = item.get('Condicion_Valor')
 
-            if agenda and ( objeto_destino or grupo_destino or variable_destino ) and evento and parametro_evento and condicion_variable and condicion_igualdad and condicion_valor :
-                logger.info(f"[check_task] Ejecutando tarea: {agenda}")
+            if agenda and ( objeto_destino or grupo_destino or variable_destino ) and evento:
                 if objeto_destino > 0:
+                    logger.info(f"[check_task] Ejecutando tarea: {agenda} para Objeto {objeto_destino}")
                     change_assign_by_id(objeto_destino, evento, parametro_evento)
                 elif grupo_destino > 0:
+                    logger.info(f"[check_task] Ejecutando tarea: {agenda} para Grupo {grupo_destino}")
                     change_group_by_id(grupo_destino, evento, parametro_evento)
 
             mysql_execute(
@@ -435,7 +436,6 @@ async def check_auto():
 
 async def worker_loop():
     div_5seg = 0
-    div_60seg = 0
     div_3600seg = 3595
 
     get_system_config()
@@ -457,11 +457,6 @@ async def worker_loop():
             await tareas_de_grupos()
             await check_notificar_abm_usuario()
             await check_auto()
-
-        div_60seg += 1
-        if div_60seg >= 60:
-            div_60seg = 0
-            # Cada minuto
             await check_task()
 
         div_3600seg += 1
