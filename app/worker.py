@@ -16,7 +16,7 @@ class WorkerConfig:
         self.Cloud_Host_2_Port = 0
         self.Cloud_Host_2_Proto = ""
         self.Use_host = 1  # 1=Cloud_Host_1, 2=Cloud_Host_2
-        self.Host_Api_Endpoint = "/notify"  # Endpoint de la API en el host remoto
+        self.Host_Api_Endpoint = "/home/notify"  # Endpoint de la API en el host remoto
         self.Cloud_Status = 0  # 1=on-line, 0=off-line
 
 config = WorkerConfig()
@@ -91,7 +91,7 @@ def query_cloud(msg):
 
     try:
         #logger.info(f"[query_cloud] POST: {url}")
-        response = requests.post(url, data=msg)
+        response = requests.post(url, data=msg, verify=False)
         if response.status_code == 200:
             resp_message = response.json()
             if config.Cloud_Status == 0:
