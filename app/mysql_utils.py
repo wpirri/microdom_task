@@ -27,6 +27,7 @@ def mysql_query_simple(query, params=None):
     conn = get_conn()
     if not conn:
         return None
+    cursor = None
     try:
         cursor = conn.cursor(dictionary=True)
         cursor.execute(query, params)
@@ -36,7 +37,8 @@ def mysql_query_simple(query, params=None):
         logger.error(f"[mysql] En Query: {query}")
         return None
     finally:
-        cursor.close()
+        if cursor is not None:
+            cursor.close()
         conn.close()  # vuelve al pool
 
 def mysql_execute(query, params=None):
@@ -55,7 +57,7 @@ def mysql_query(query, params=None):
     
 def mysql_next_id(table_name, column_name="Id"):
     result = mysql_query(f"SELECT MAX({column_name}) AS max_id FROM {table_name}")
-    if result and len(result) > 0:
+    if result and len(result) > 0 and result[0]['max_id'] is not None:
         return result[0]['max_id'] + 1
     else:
         return 1

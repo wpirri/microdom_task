@@ -2,9 +2,12 @@ import asyncio
 import json
 from datetime import datetime
 import requests
+import urllib3
 from app.log_utils import get_daily_logger
 from app.config_utils import get_config_value
 from app.mysql_utils import mysql_execute, mysql_query
+
+urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)
 
 class WorkerConfig:
     def __init__(self):
@@ -79,19 +82,19 @@ def query_cloud(msg):
         config.Use_host = 1
     # Armo la URL con el host configurado
     if config.Use_host == 1:
-        if {config.Cloud_Host_1_Port} == 0:
+        if config.Cloud_Host_1_Port == 0:
             url = f"{config.Cloud_Host_1_Proto}://{config.Cloud_Host_1_Address}{config.Host_Api_Endpoint}"
         else:
             url = f"{config.Cloud_Host_1_Proto}://{config.Cloud_Host_1_Address}:{config.Cloud_Host_1_Port}{config.Host_Api_Endpoint}"
     else:
-        if {config.Cloud_Host_2_Port} == 0:
+        if config.Cloud_Host_2_Port == 0:
             url = f"{config.Cloud_Host_2_Proto}://{config.Cloud_Host_2_Address}{config.Host_Api_Endpoint}"
         else:
             url = f"{config.Cloud_Host_2_Proto}://{config.Cloud_Host_2_Address}:{config.Cloud_Host_2_Port}{config.Host_Api_Endpoint}"
 
     try:
         #logger.info(f"[query_cloud] POST: {url}")
-        response = requests.post(url, data=msg, verify=False)
+        response = requests.post(url, data=msg, verify=False, timeout=5)
         if response.status_code == 200:
             resp_message = response.json()
             if config.Cloud_Status == 0:
@@ -101,14 +104,14 @@ def query_cloud(msg):
             logger.error(f"[query_cloud] [{response.status_code}] en POST a {url}")
             # Cambio de host para el próximo intento
             config.Use_host = (3 - config.Use_host)
-            if config.Cloud_Status == 0:
+            if config.Cloud_Status == 1:
                 logger.info(f"[query_cloud] Host Cloud fuera de línea.")
                 config.Cloud_Status = 0  # Marcar como off-line
     except Exception as e:
         logger.error(f"[query_cloud] Excepción en POST a {url} [{e}]")
         # Cambio de host para el próximo intento
         config.Use_host = (3 - config.Use_host)
-        if config.Cloud_Status == 0:
+        if config.Cloud_Status == 1:
             logger.info(f"[query_cloud] Host Cloud fuera de línea.")
             config.Cloud_Status = 0  # Marcar como off-line
     
@@ -186,7 +189,7 @@ async def check_notificar_abm_objetos():
         query_cloud(query_result[0])
 
 async def check_notificar_abm_usuario():
-    query_result = mysql_query("SELECT Usuario_Cloud AS User_Id, Clave_Cloud AS Clave, Amazon_Key, Google_Key, Apple_Key, Other_Key, Estado from TB_DOM_USER WHERE Actualizar = 1 AND Id > 0;")
+    query_result = mysql_query("SELECT Id, Usuario_Cloud AS User_Id, Clave_Cloud AS Clave, Amazon_Key, Google_Key, Apple_Key, Other_Key, Estado from TB_DOM_USER WHERE Actualizar = 1 AND Id > 0;")
     if query_result:
         for i in range(0, len(query_result)):
             if query_result[i]['User_Id'] and query_result[i]['Clave']:
@@ -238,6 +241,8 @@ def change_assign_by_id(id, accion, parametro=0):
 
 def change_group_by_id(id, accion, parametro=0):
     query_result = mysql_query(f"SELECT Estado, Listado_Objetos FROM TB_DOM_GROUP WHERE Id = {id};")
+    if not query_result:
+        return 0
     estado_grupo = query_result[0]['Estado']
     objetos = query_result[0]['Listado_Objetos'].split(",")
 
