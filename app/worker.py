@@ -23,6 +23,7 @@ class WorkerConfig:
         self.Cloud_Status = 0  # 1=on-line, 0=off-line
 
 config = WorkerConfig()
+_cloud_session = requests.Session()
 
 logger = get_daily_logger()
 
@@ -94,7 +95,7 @@ def query_cloud(msg):
 
     try:
         #logger.info(f"[query_cloud] POST: {url}")
-        response = requests.post(url, data=msg, verify=False, timeout=5)
+        response = _cloud_session.post(url, data=msg, verify=False, timeout=5)
         if response.status_code == 200:
             resp_message = response.json()
             if config.Cloud_Status == 0:
@@ -144,11 +145,11 @@ def get_system_config():
     else:
         logger.error("get_system_config: No se encontró configuración del sistema.")
 
-async def tareas_de_dispositivos():
+def tareas_de_dispositivos():
     logger.debug("[tareas_de_dispositivos]")
     mysql_execute("UPDATE TB_DOM_PERIF SET Estado = 0 WHERE Ultimo_Ok < (UNIX_TIMESTAMP()-30) AND Estado != 0;")
 
-async def tareas_de_grupos():
+def tareas_de_grupos():
     logger.debug("[tareas_de_grupos]")
     query_result = mysql_query("SELECT * FROM TB_DOM_GROUP WHERE Id > 0;")
     if query_result:
@@ -168,12 +169,12 @@ async def tareas_de_grupos():
             elif todos_apagados and query_result[i]['Estado'] != 0:
                 mysql_execute(f"UPDATE TB_DOM_GROUP SET Estado = 0, Actualizar = 1 WHERE Id = {query_result[i]['Id']};")
 
-async def tareas_de_assigns():
+def tareas_de_assigns():
     logger.debug("[tareas_de_assign]")
     # Mantengo el estado de las salidas de pulso
     mysql_execute(f"UPDATE TB_DOM_ASSIGN SET Estado = (Estado-1) WHERE Estado > 0 AND Tipo = 5;")
 
-async def check_notificar_abm_objetos():
+def check_notificar_abm_objetos():
     query_result = mysql_query("SELECT Id AS ASS_Id,Objeto,Tipo,Estado,Icono_Apagado,"
         "Icono_Encendido,Grupo_Visual,Planta,Cord_x,"
         "Cord_y,Coeficiente,Analog_Mult_Div,Analog_Mult_Div_Valor,Flags "
@@ -188,7 +189,7 @@ async def check_notificar_abm_objetos():
         query_result = [{"System_Key": config.System_Key}]
         query_cloud(query_result[0])
 
-async def check_notificar_abm_usuario():
+def check_notificar_abm_usuario():
     query_result = mysql_query("SELECT Id, Usuario_Cloud AS User_Id, Clave_Cloud AS Clave, Amazon_Key, Google_Key, Apple_Key, Other_Key, Estado from TB_DOM_USER WHERE Actualizar = 1 AND Id > 0;")
     if query_result:
         for i in range(0, len(query_result)):
@@ -198,7 +199,7 @@ async def check_notificar_abm_usuario():
                 query_cloud(query_result[i])
                 mysql_execute(f"UPDATE TB_DOM_USER SET Actualizar = 0 WHERE Id = {query_result[i]['Id']};")
 
-async def actualizar_usuarios_a_nube():
+def actualizar_usuarios_a_nube():
     logger.info(f"[actualizar_usuarios_a_nube] Actualizando usuarios en la nube")
     query_result = mysql_query("SELECT Usuario_Cloud AS User_Id, Clave_Cloud AS Clave, Amazon_Key, Google_Key, Apple_Key, Other_Key, Estado FROM TB_DOM_USER WHERE Id > 0;")
     if query_result:
@@ -208,7 +209,7 @@ async def actualizar_usuarios_a_nube():
                 logger.info(f"[actualizar_usuarios_a_nube] Req: {query_result[i]}")
                 query_cloud(query_result[i])
 
-async def actualizar_objetos_a_nube():
+def actualizar_objetos_a_nube():
     logger.info(f"[actualizar_objetos_a_nube] Actualizando objetos en la nube")
     query_result = mysql_query("SELECT Id AS ASS_Id,Objeto,Tipo,Estado,Icono_Apagado,"
         "Icono_Encendido,Grupo_Visual,Planta,Cord_x,"
@@ -274,7 +275,7 @@ def change_group_by_id(id, accion, parametro=0):
 
     return len(objetos)
 
-async def check_task():
+def check_task():
     dias = ["Do", "Lu", "Ma", "Mi", "Ju", "Vi", "Sa"]
     ahora = datetime.now().astimezone()
     dia_semana = dias[int(ahora.strftime("%w"))]
@@ -321,7 +322,7 @@ async def check_task():
                 f"Ultima_Hora = {hora}, Ultimo_Minuto = {minuto} WHERE Id = {id};"
             )
 
-async def check_auto():
+def check_auto():
     dias = ["Do", "Lu", "Ma", "Mi", "Ju", "Vi", "Sa"]
     tabla_enviar = ["Nada", "Encender", "Apagar", "Cambiar"]
     ahora = datetime.now().astimezone()
@@ -458,22 +459,22 @@ async def worker_loop():
         if div_5seg >= 15:
             div_5seg = 0
             # Cada 15 segundos
-            await tareas_de_dispositivos()
-            await tareas_de_grupos()
-            await check_notificar_abm_usuario()
-            await check_auto()
-            await check_task()
+            await asyncio.to_thread(tareas_de_dispositivos)
+            await asyncio.to_thread(tareas_de_grupos)
+            await asyncio.to_thread(check_notificar_abm_usuario)
+            await asyncio.to_thread(check_auto)
+            await asyncio.to_thread(check_task)
 
         div_3600seg += 1
         if div_3600seg >= 3600:
             div_3600seg = 0
             # Cada hora
-            await actualizar_usuarios_a_nube()
-            await actualizar_objetos_a_nube()
+            await asyncio.to_thread(actualizar_usuarios_a_nube)
+            await asyncio.to_thread(actualizar_objetos_a_nube)
 
         # Cada segundo
-        await check_notificar_abm_objetos()
-        await tareas_de_assigns()
+        await asyncio.to_thread(check_notificar_abm_objetos)
+        await asyncio.to_thread(tareas_de_assigns)
 
         await asyncio.sleep(get_config_value("TASK_INTERVAL", 1))
         
