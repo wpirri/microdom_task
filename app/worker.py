@@ -459,7 +459,7 @@ async def worker_loop():
         if div_5seg >= 15:
             div_5seg = 0
             # Cada 15 segundos
-            await asyncio.to_thread(tareas_de_dispositivos)
+            # await asyncio.to_thread(tareas_de_dispositivos)
             await asyncio.to_thread(tareas_de_grupos)
             await asyncio.to_thread(check_notificar_abm_usuario)
             await asyncio.to_thread(check_auto)
